@@ -12,7 +12,7 @@
 6) Quitter
 =================================================
 
-Samuel Langis 1 septembre 2025
+Samuel Langis janvier 2026
 
 Notes:
 - PS 5.1+ compatible
