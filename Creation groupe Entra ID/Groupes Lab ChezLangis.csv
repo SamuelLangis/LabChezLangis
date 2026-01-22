@@ -1,0 +1,38 @@
+﻿# ============================,,
+# Création de groupes Entra ID,,
+# Format : les lignes commençant par # et les lignes vides sont ignorees,,
+# Sauvegarder en format - CSV UTF-8 Comma delimited,,
+# ============================,,
+,,
+# === Configuration par defaut  ===,,
+PREFIX = Devices-WIN-,,
+DESCRIPTION = Groupe d'Appareils Windows,,
+,,
+# === Définition des groupes ===,,
+# Format a respecter,,
+#Nom du groupe (obligatoire),Groupe parent (facultatif),Description (facultatif)
+,,
+# Groupes des laboratoires,,
+Labs,,Appareils Windows de tous les laboratoires
+,,
+# Groupes des laboratoires 1000,,
+Labs 1000,Labs,Appareils Windows de tous les laboratoires 1000
+Lab 1001,Labs 1000,Appareils Windows du Laboratoire 1001
+Lab 1002,Labs 1000,Appareils Windows du Laboratoire 1002
+Lab 1003,Labs 1000,Appareils Windows du Laboratoire 1003
+Lab 1004,Labs 1000,Appareils Windows du Laboratoire 1004
+Lab 1010,Labs 1000,Appareils Windows du Laboratoire 1005
+Lab 1020,Labs 1000,Appareils Windows du Laboratoire 1005
+,,
+# Groupes des laboratoires 2000,,
+Labs 2000,Labs,Appareils Windows de tous les laboratoires 2000
+Lab 2001,Labs 2000,Appareils Windows du Laboratoire 2001
+Lab 2002,Labs 2000,Appareils Windows du Laboratoire 2002
+Lab 2003,Labs 2000,Appareils Windows du Laboratoire 2003
+Lab 2004,Labs 2000,Appareils Windows du Laboratoire 2004
+Lab 2010,Labs 2000,Appareils Windows du Laboratoire 2005
+,,
+,,
+# Services,,
+TI,,
+Ressources matérielles,,
