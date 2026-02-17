@@ -27,10 +27,13 @@ $encodedScript = [Convert]::ToBase64String($bytes)
 # Action : exécuter PowerShell avec script encodé
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -EncodedCommand $encodedScript"
 
-# Déclencheurs à 60, 120 et 180 minutes
+# Intervalles désirés (en minutes)
+$intervals = @(30, 60, 90, 120, 150, 180)
+
+# Déclencheurs multiples
 $triggers = @()
-for ($i = 0; $i -lt 3; $i++) {
-    $runAt = $baseTime.AddMinutes(60 * $i)
+foreach ($minutes in $intervals) {
+    $runAt = (Get-Date).AddMinutes($minutes)
     $triggers += New-ScheduledTaskTrigger -Once -At $runAt
 }
 
