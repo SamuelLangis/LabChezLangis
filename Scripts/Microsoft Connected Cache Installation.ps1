@@ -47,13 +47,13 @@ set-executionpolicy bypass -force
 # $User doit être avec un format "LocalMachineName\Username" et le mot de passe ne doit pas contenir de "$".
 
 $User = 'MCC-01\MCC'
-$pw = ConvertTo-SecureString 'Patate12' -AsPlainText -Force
+$pw = ConvertTo-SecureString 'Patate' -AsPlainText -Force
 $myLocalAccountCredential = [pscredential]::new($User,$pw)
 
 # Si un compte GMSA
 
 # $User doit être avec un format "Domain\Username$"
-# $User = "BDEB\MCC$"
+# $User = "ChezLangis\MCC$"
 
 
 <#
