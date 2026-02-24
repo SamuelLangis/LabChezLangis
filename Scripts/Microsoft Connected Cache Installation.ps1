@@ -1,9 +1,9 @@
 <#
 
 Script pour Installer un Microsoft Connected Cache
-juillet 2025
+février 2026
 
-# Étape #1
+## Étape #1
 # Installation Windows Subsystem for Linux (WSL)
 
 # Commande pour installer 
@@ -13,7 +13,7 @@ wsl.exe --install --no-distribution
 wsl --list --verbose
 
 
-# Étape #2
+## Étape #2
 # Install Hyper-V Management Tools (pourrait être supprimé après)
 
 # on Windows Server
@@ -23,7 +23,7 @@ Install-WindowsFeature -Name Hyper-V -IncludeManagementTools
 Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V-Management-PowerShell -All
 
 
-# Étape #3
+## Étape #3
 # Application Connected Cache Windows
 
 #Download and install the Connected Cache Windows application
@@ -41,7 +41,7 @@ deliveryoptimization-cli mcc-get-scripts-path
 
 set-executionpolicy bypass -force
 
-# Étape #4 Détails du compte de service utilisé
+## Étape #4 Détails du compte de service utilisé
 
 # Si un compte local
 # $User doit être avec un format "LocalMachineName\Username" et le mot de passe ne doit pas contenir de "$".
@@ -57,16 +57,21 @@ $myLocalAccountCredential = [pscredential]::new($User,$pw)
 
 
 <#
-# Étape #5
-# Désinstallation de l'installation précédente Public Preview, surtout pour libérer de l'espace disque
+## Étape #5
+## Désinstallation de l'installation précédente Public Preview, surtout pour libérer de l'espace disque
+
+# Si un compte local
 cd C:\mccwsl01
 .\uninstallmcconwsl.ps1 -mccLocalAccountCredential $myLocalAccountCredential
 
+# Si un compte GMSA
+cd C:\mccwsl01
+.\uninstallmcconwsl.ps1 -RunTimeAccountName $User
+
 #>
 
-# Étape #6
+## Étape #6
 # Utiliser "Cache Node Deployment Command" de la ressource Azure
-
 # Exemple
 
 Push-Location (deliveryoptimization-cli mcc-get-scripts-path); 
@@ -75,17 +80,23 @@ Push-Location (deliveryoptimization-cli mcc-get-scripts-path);
 
 
 <#
-# Autres commandes
+## Autres commandes
 
-# To verify that the Connected Cache container on the host machine is running and reachable. Doit donner "StatusCode 200"
+## To verify that the Connected Cache container on the host machine is running and reachable. Doit donner "StatusCode 200"
 wget http://localhost/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
 
-# To verify that Windows client devices in your network can reach the Connected Cache node
+## To verify that Windows client devices in your network can reach the Connected Cache node
 http://[HostMachine-IP-address]/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
 
-# Désinstallation Local User Accounts
+
+## Désinstallation s'il faut faire une réinstallation
+
+# Si un compte local
 cd $(deliveryoptimization-cli mcc-get-scripts-path)
 .\uninstallmcconwsl.ps1 -mccLocalAccountCredential $myLocalAccountCredential
 
-#>
+# Si un compte GMSA
+cd $(deliveryoptimization-cli mcc-get-scripts-path)
+.\uninstallmcconwsl.ps1 -RunTimeAccountName $User
+
 #>
