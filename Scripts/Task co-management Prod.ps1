@@ -1,6 +1,6 @@
 # Création d'une tâche planifiée sur un poste Windows pour forcer l'étape de joindre un poste à Intune (cogestion) sans attendre le cycle normal de 24 heures
-# La tâche est exécutée trois fois à 60 minutes d'intervalle pour s'assurer de la réussite du processus
-# Samuel Langis, modifié le 10 juin 2025
+# La tâche est exécutée 6 fois à 30 minutes d'intervalle pour s'assurer de la réussite du processus
+# Samuel Langis
 
 # Nom de la tâche
 $taskName = 'Evaluer-CoMgmtSettings'
