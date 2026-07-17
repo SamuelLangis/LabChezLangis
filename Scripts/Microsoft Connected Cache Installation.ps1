@@ -84,10 +84,13 @@ Push-Location (deliveryoptimization-cli mcc-get-scripts-path);
 
 ## To verify that the Connected Cache container on the host machine is running and reachable. Doit donner "StatusCode 200"
 wget http://localhost/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
+wget https://MCC-01.chezlangis.ca/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
 
 ## To verify that Windows client devices in your network can reach the Connected Cache node
 http://[HostMachine-IP-address]/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
 
+Si le certificat a un DNS name
+https://mcc-01.chezlangis.ca/filestreamingservice/files/7bc846e0-af9c-49be-a03d-bb04428c9bb5/Microsoft.png?cacheHostOrigin=dl.delivery.mp.microsoft.com
 
 ## Désinstallation s'il faut faire une réinstallation
 
