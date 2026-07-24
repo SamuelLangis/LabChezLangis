@@ -5,6 +5,10 @@ $User = 'MCC-01\MCC'
 $pw = ConvertTo-SecureString 'Patate12' -AsPlainText -Force
 $myLocalAccountCredential = [pscredential]::new($User,$pw)
 
+# Si un compte GMSA
+# $User doit être avec un format "Domain\Username$"
+$User = "ChezLangis\MCC$"
+
 cd $(deliveryoptimization-cli mcc-get-scripts-path)
 
 # Générer le certificat à signer à partir du MCC
