@@ -1,4 +1,4 @@
-﻿set-executionpolicy bypass -force
+﻿# Script pour configurer le HTTPS sur un Microsoft Connected Cache (MCC)
 
 # Si un compte local
 $User = 'MCC-01\MCC'

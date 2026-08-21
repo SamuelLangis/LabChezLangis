@@ -39,8 +39,6 @@ deliveryoptimization-cli mcc-get-scripts-path
 
 #>
 
-set-executionpolicy bypass -force
-
 ## Étape #4 Détails du compte de service utilisé
 
 # Si un compte local
