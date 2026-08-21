@@ -1,5 +1,8 @@
 ﻿# Script pour configurer le HTTPS sur un Microsoft Connected Cache (MCC)
 
+# Il faut mettre à jour l'application "Connected Cache Windows" si ce n'est pas la dernière version
+# Add-AppxPackage "https://aka.ms/do-mcc-ent-windows-x64"
+
 # Si un compte local
 $User = 'MCC-01\MCC'
 $pw = ConvertTo-SecureString 'Patate12' -AsPlainText -Force
