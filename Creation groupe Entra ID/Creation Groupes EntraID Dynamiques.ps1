@@ -2,37 +2,63 @@
 Création automatique de groupes DYNAMIQUES d'appareils Entra ID à partir d'un .CSV
 en format UTF-8 Comma delimited (variante de "Creation Groupes EntraID.ps1")
 =======================================================================
-Version 24 novembre 2026 (rév. 4 : gestion des accents)
+Version 25 novembre 2026 (rév. 5 : commentaires alignés sur le gabarit "Groupes Template -Dynamique.csv")
 
+Exemple de fichier CSV (Groupes Template -Dynamique.csv)
 ------------------------------------------
+# ============================,,
+"# Création de groupes Entra ID ""Dynamique Device"" avec une règle basée sur le nom du poste",,
+# Format : les lignes commençant par # et les lignes vides sont ignorees,,
+# Sauvegarder en format - CSV UTF-8 Comma delimited,,
+# ============================,,
+,,
 # === Configuration par defaut  ===,,
-PREFIX PARENT = Devices-WIN-,,
+# Prefix utilisé pour la création du  nom du groupe dynamique,,
 PREFIX DYNAMIQUE = DYN-WIN-,,
+# Prefix utilisé pour le nom du groupe parent,,
+PREFIX PARENT = Device-WIN-,,
+,,
+# Description du groupe dynamique par defaut,,
 DESCRIPTION = Groupe de devices dynamique utilisé uniquement pour peupler les groupes de base,,
-"REGLE = (device.displayName -startsWith ""COLONNE A"") and ( (device.deviceTrustType -eq ""ServerAd"") or (device.deviceTrustType -eq ""AzureAD""))",,
+,,
+# Syntaxe de la règle dynamique utilisée,,
+"REGLE = (device.displayName -startsWith ""COLONNE A"") and (device.deviceTrustType -eq ""ServerAd"")",,
+"#REGLE = (device.displayName -startsWith ""COLONNE A"") and ( (device.deviceTrustType -eq ""ServerAd"") or (device.deviceTrustType -eq ""AzureAD""))",,
 ,,
 # === Définition des groupes ===,,
-#Nom du groupe (obligatoire),Groupe parent (facultatif),Description (facultatif)
-Lab 1001,Labs 1000,
-Lab 1002,Labs 1000,Description personnalisée
-...
+# Début du nom des postes (obligatoire),Groupe parent (facultatif),Description spécifique(facultatif)
+,,
+LAB100,Lab 100,
+LAB200,Lab 200,
+------------------------------------------
+
+Configuration (en début de fichier) :
+- PREFIX DYNAMIQUE : préfixe ajouté devant la colonne A pour nommer le groupe dynamique créé.
+- PREFIX PARENT    : préfixe ajouté devant la colonne B pour trouver le groupe parent.
+- DESCRIPTION      : description par défaut du groupe dynamique.
+- REGLE            : règle d'appartenance dynamique; le texte "COLONNE A" y est remplacé par
+                     la valeur de la colonne A. Une seule ligne REGLE active : pour garder une
+                     règle de rechange, la mettre en commentaire ("#REGLE = ...").
 
 Interprétation des colonnes :
-- Colonne A : valeur utilisée
-    1) pour le nom du groupe dynamique créé : <PREFIX DYNAMIQUE><Colonne A>
-    2) dans la règle : le texte "COLONNE A" de REGLE est remplacé par la valeur de la colonne A
-- Colonne B : groupe parent <PREFIX PARENT><Colonne B>. Il n'est PAS créé : il doit déjà exister
-  (et être un groupe à appartenance attribuée, pas dynamique).
-- Colonne C : description personnalisée; si vide, DESCRIPTION est utilisée.
+- Colonne A : début du nom des postes (obligatoire). Valeur utilisée
+    1) pour le nom du groupe dynamique créé : <PREFIX DYNAMIQUE><Colonne A>  (ex.: DYN-WIN-LAB100)
+    2) dans la règle, à la place de "COLONNE A"   (ex.: device.displayName -startsWith "LAB100")
+- Colonne B : groupe parent <PREFIX PARENT><Colonne B> (ex.: Device-WIN-Lab 100) (facultatif).
+  Il n'est PAS créé : il doit déjà exister et être un groupe à appartenance attribuée (pas dynamique).
+- Colonne C : description spécifique (facultatif); si vide, DESCRIPTION est utilisée.
 
 Règles :
-- Les lignes vides, celles ne contenant que des ',' et celles commençant par '#' sont ignorées.
+- Les lignes vides, celles ne contenant que des ',' et celles commençant par '#' sont ignorées
+  (y compris les commentaires qu'Excel met entre guillemets, ex.: "# ... ""Dynamique Device"" ...").
 - Les champs entre guillemets (ex.: la ligne REGLE enregistrée par Excel) sont gérés.
+- Un résumé (nom, règle, description, parent) est affiché avant la connexion à Microsoft Graph.
 - Un groupe dynamique existant n'est pas modifié; un avertissement est affiché si sa règle diffère.
+- Si le groupe est déjà membre du parent, une information est affichée (pas d'erreur).
 - Nécessite une licence Entra ID P1 (groupes dynamiques).
 
 Exécution :
-& ".\Creation Groupes Dynamiques EntraID.ps1" -Path ".\Groupes Lab ChezLangis -Dynamique.csv"
+& ".\Creation Groupes EntraID Dynamiques.ps1" -Path ".\Groupes Template -Dynamique.csv"
 
 #>
 

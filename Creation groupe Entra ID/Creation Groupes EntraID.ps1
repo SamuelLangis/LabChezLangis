@@ -1,33 +1,55 @@
 ﻿<#
 Création automatique de groupes Entra ID à partir d’un .CSV en format UTF-8 Comma delimited
 =======================================================================
-Version 24 novembre 2026 : gestion des accents + détection « déjà membre » + résumé avant connexion
+Version 19 décembre 2025 (rév. 25 novembre 2026 : gestion des accents + détection « déjà membre »
++ résumé avant connexion + commentaires alignés sur le gabarit "Groupes Template.csv")
 
+Exemple de fichier CSV (Groupes Template.csv)
 ------------------------------------------
+# ============================,,
+# Création de groupes Entra ID,,
+# Format : les lignes commençant par # et les lignes vides sont ignorees,,
+# Sauvegarder en format - CSV UTF-8 Comma delimited,,
+# ============================,,
+,,
 # === Configuration par defaut  ===,,
-PREFIX = Devices-WIN-,,
+# Prefix utilisé pour le nom de chaque groupe,,
+PREFIX = Device-WIN-,,
+,,
+# Description du groupe par defaut,,
 DESCRIPTION = Groupe d'Appareils Windows,,
 ,,
 # === Définition des groupes ===,,
-# Format a respecter,,
-#Nom du groupe (obligatoire),Groupe parent (facultatif),Description (facultatif)
+#Nom du groupe (obligatoire),Groupe parent (facultatif),Description spécifique (facultatif)
 ,,
 # Groupes des laboratoires,,
-Labs,,Appareils Windows de tous les laboratoires
+Tous,,Tous les appareils Windows
+Labs,Tous,Appareils Windows de tous les laboratoires
 ,,
-# Groupes des laboratoires 1000,,
-Labs 1000,Labs,Appareils Windows de tous les laboratoires 1000
-Lab 1001,Labs 1000,Appareils Windows du Laboratoire 1001
-Lab 1002,Labs 1000,Appareils Windows du Laboratoire 1002
-...
+# Groupes des laboratoires,,
+Lab 100,Labs,Appareils Windows du Laboratoire 100
+Lab 200,Labs,Appareils Windows du Laboratoire 200
+------------------------------------------
+
+Configuration (en début de fichier) :
+- PREFIX      : préfixe ajouté devant le nom de chaque groupe (colonnes A et B).
+- DESCRIPTION : description par défaut des groupes.
+
+Interprétation des colonnes :
+- Colonne A : nom du groupe (obligatoire). Groupe créé : <PREFIX><Colonne A>  (ex.: Device-WIN-Lab 100)
+- Colonne B : groupe parent (facultatif), désigné par son nom en colonne A (sans le préfixe).
+  Le parent doit lui aussi être défini dans le fichier.
+- Colonne C : description spécifique (facultatif); si vide, DESCRIPTION est utilisée.
 
 Règles :
-- Les lignes vides, celles ne contenant que des ';' (ex.: ';;') et celles commençant par '#'
+- Les lignes vides, celles ne contenant que des ',' (ex.: ',,') et celles commençant par '#'
   sont ignorées.
-- Le nom de groupe est obligatoire; le parent et la description sont facultatifs.
+- Un résumé (nom, description, parent) est affiché avant la connexion à Microsoft Graph.
+- Un groupe existant n'est pas modifié; si le groupe est déjà membre du parent, une information
+  est affichée (pas d'erreur).
 
 Exécution :
-& ".\Creation Groupes EntraID.ps1" -path ".\Groupes Lab ChezLangis.csv"
+& ".\Creation Groupes EntraID.ps1" -Path ".\Groupes Template.csv"
 
 #>
 

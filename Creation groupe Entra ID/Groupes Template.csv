@@ -5,15 +5,18 @@
 # ============================,,
 ,,
 # === Configuration par defaut  ===,,
+# Prefix utilisé pour le nom de chaque groupe,,
 PREFIX = Device-WIN-,,
+,,
+# Description du groupe par defaut,,
 DESCRIPTION = Groupe d'Appareils Windows,,
 ,,
 # === Définition des groupes ===,,
-# Format a respecter,,
-#Nom du groupe (obligatoire),Groupe parent (facultatif),Description (facultatif)
+#Nom du groupe (obligatoire),Groupe parent (facultatif),Description spécifique (facultatif)
 ,,
 # Groupes des laboratoires,,
-Labs,,Appareils Windows de tous les laboratoires
+Tous,,Tous les appareils Windows
+Labs,Tous,Appareils Windows de tous les laboratoires
 ,,
 # Groupes des laboratoires,,
 Lab 100,Labs,Appareils Windows du Laboratoire 100
