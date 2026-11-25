@@ -10,10 +10,11 @@ $myLocalAccountCredential = [pscredential]::new($User,$pw)
 
 # Si un compte GMSA
 # $User doit être avec un format "Domain\Username$"
-$User = "ChezLangis\MCC$"
+# $User = "ChezLangis\MCC$"
 
 cd $(deliveryoptimization-cli mcc-get-scripts-path)
 
+## Étape #1
 # Générer le certificat à signer à partir du MCC (ajuster les paramètres)
 # Generate a Certificate Signing Request (CSR)
 
@@ -29,15 +30,21 @@ cd $(deliveryoptimization-cli mcc-get-scripts-path)
     -subjectOrg "Lab Chez Langis" `
     -sanDns "MCC-01.chezlangis.ca"
 
-# Récupérer le certificat dans le dossier
-# C:\mccwsl01\Certificates\certs
+<# 
+## Étape #2
+Récupérer le certificat dans le dossier
+C:\mccwsl01\Certificates\certs
 
-# Signer le certificat en fonction de la méthode de l'organisation
+## Étape #2
+Signer le certificat en fonction de la méthode de l'organisation
 
-# Copier le certificate signé .crt dans le même dossier (renommer le fichier en .crt au besoin)
+## Étape #3
+Copier le certificate signé .crt dans le même dossier (renommer le fichier en .crt au besoin)
 
-# Importation du certificat signé
-# Import signed TLS certificate
+## Étape #4
+Importation du certificat signé
+Import signed TLS certificate
+#>
 
  .\importCert.ps1 `
    -mccRunTimeAccount $User `

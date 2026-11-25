@@ -1,7 +1,7 @@
 ﻿<#
 Création automatique de groupes Entra ID à partir d’un .CSV en format UTF-8 Comma delimited
 =======================================================================
-Version 19 décembre 2025
+Version 24 novembre 2026 : gestion des accents + détection « déjà membre » + résumé avant connexion
 
 ------------------------------------------
 # === Configuration par defaut  ===,,
@@ -45,6 +45,69 @@ function Write-ErrorX { param($m) Write-Host "[ERR  ] $m" -ForegroundColor Red }
 function Slugify {
   param([string]$s)
   return ($s -replace '[^a-zA-Z0-9]','').ToLower()
+}
+
+# ------------------------
+# Gestion des accents
+# ------------------------
+# Lecture du CSV avec détection de l'encodage :
+#  - UTF-8 avec BOM (« CSV UTF-8 » d'Excel) ou UTF-8 sans BOM
+#  - UTF-16 (« Texte Unicode » d'Excel)
+#  - sinon Windows-1252 (« CSV séparateur virgule » d'Excel) au lieu de lettres corrompues
+function Read-CsvLines {
+  param([Parameter(Mandatory)][string]$Path)
+  $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path).ProviderPath)
+  if ($bytes.Length -ge 3 -and $bytes[0] -eq 0xEF -and $bytes[1] -eq 0xBB -and $bytes[2] -eq 0xBF) {
+    $text = [System.Text.Encoding]::UTF8.GetString($bytes, 3, $bytes.Length - 3)
+  } elseif ($bytes.Length -ge 2 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xFE) {
+    $text = [System.Text.Encoding]::Unicode.GetString($bytes, 2, $bytes.Length - 2)
+  } else {
+    try {
+      $strictUtf8 = New-Object System.Text.UTF8Encoding($false, $true)   # lève une erreur si UTF-8 invalide
+      $text = $strictUtf8.GetString($bytes)
+    } catch {
+      Write-Warn "Le CSV n'est pas en UTF-8 : lecture en Windows-1252. (Recommandé : enregistrer en « CSV UTF-8 (délimité par des virgules) ».)"
+      try   { $enc = [System.Text.Encoding]::GetEncoding(1252) }
+      catch { $enc = [System.Text.Encoding]::GetEncoding(28591) }       # Latin-1 si 1252 indisponible
+      $text = $enc.GetString($bytes)
+    }
+  }
+  return ($text -split "\r?\n")
+}
+
+# JSON pour Graph : tous les caractères non ASCII sont échappés en \uXXXX.
+# Le corps envoyé est 100 % ASCII, donc les accents arrivent intacts quel que soit
+# l'encodage utilisé par Invoke-MgGraphRequest (Windows PowerShell 5.1 ou PowerShell 7).
+function ConvertTo-GraphJson {
+  param([Parameter(Mandatory)]$InputObject, [int]$Depth = 5)
+  $json = ConvertTo-Json -InputObject $InputObject -Depth $Depth -Compress
+  return [regex]::Replace($json, '[^\x00-\x7F]', { param($m) '\u{0:x4}' -f [int][char]$m.Value })
+}
+
+# URL Graph avec filtre sur displayName : la valeur est encodée (accents, espaces, apostrophes).
+function Get-GroupFilterUri {
+  param([Parameter(Mandatory)][string]$DisplayName, [string]$Select = "")
+  $safe   = $DisplayName.Replace("'", "''")
+  $filter = [uri]::EscapeDataString("displayName eq '$safe'")
+  $uri    = "https://graph.microsoft.com/v1.0/groups?`$filter=$filter"
+  if ($Select) { $uri += "&`$select=$Select" }
+  return $uri
+}
+
+# mailNickname : accents convertis (é -> e, ç -> c) au lieu d'être supprimés.
+function Get-MailNickname {
+  param([string]$DisplayName)
+  $decomposed = $DisplayName.Normalize([System.Text.NormalizationForm]::FormD)
+  $sb = New-Object System.Text.StringBuilder
+  foreach ($ch in $decomposed.ToCharArray()) {
+    if ([System.Globalization.CharUnicodeInfo]::GetUnicodeCategory($ch) -ne [System.Globalization.UnicodeCategory]::NonSpacingMark) {
+      [void]$sb.Append($ch)
+    }
+  }
+  $nick = ($sb.ToString() -replace '[^a-zA-Z0-9]', '').ToLower()
+  if ($nick.Length -gt 64) { $nick = $nick.Substring(0, 64) }
+  if ($nick.Length -eq 0)  { $nick = "grp$(Get-Random -Minimum 10000 -Maximum 99999)" }
+  return $nick
 }
 
 # Fonction à inclure dans les scripts pour gérer une connexion MgGraph
@@ -155,7 +218,7 @@ if (-not (Test-Path $Path)) {
     throw "Fichier introuvable: $Path"
 }
 
-$content = Get-Content -Path $Path -Encoding UTF8
+$content = Read-CsvLines -Path $Path
 
 if (-not $content -or $content.Count -eq 0) {
     throw "Le fichier est vide ou illisible."
@@ -228,7 +291,23 @@ foreach ($line in $groupLines) {
 
 }
 
-Write-Host "Groupes détectés: $($rows.Count)" -ForegroundColor Green
+# Résumé de ce qui sera fait (affiché AVANT la connexion)
+$csvNames = @($rows | ForEach-Object { $_.Nom })
+Write-Host "`nGroupes détectés: $($rows.Count)" -ForegroundColor Green
+foreach ($g in $rows) {
+    $dn   = "$GlobalPrefix$($g.Nom)"
+    $desc = "(aucune)"
+    if (-not [string]::IsNullOrWhiteSpace($g.DescriptionGroupe)) { $desc = $g.DescriptionGroupe }
+    elseif (-not [string]::IsNullOrWhiteSpace($GlobalDesc))     { $desc = "$GlobalDesc (par défaut)" }
+    $par = "(aucun)"
+    if ($g.Parents) {
+        $par = "$GlobalPrefix$($g.Parents)"
+        if ($g.Parents -notin $csvNames) { $par += "  ⚠ absent du CSV : l'imbrication échouera" }
+    }
+    Write-Host "  • $dn" -ForegroundColor White
+    Write-Host "      Description : $desc" -ForegroundColor DarkGray
+    Write-Host "      Parent      : $par" -ForegroundColor DarkGray
+}
 
 
 # Connexion Microsoft Graph
@@ -274,23 +353,37 @@ function Get-GroupMemberIdSet {
   return $ids
 }
 
+# Le groupe enfant est-il (directement ou transitivement) membre du groupe parent ?
+# checkMemberGroups s'appelle sur l'ENFANT avec l'ID du PARENT : la réponse contient
+# l'ID du parent si l'enfant en est membre.
 function Test-TransitiveMembership {
   param(
     [Parameter(Mandatory)][string]$ParentId,
     [Parameter(Mandatory)][string]$ChildId
   )
   try {
-    $body = @{ ids = @($ChildId) } | ConvertTo-Json
-    $resp = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/groups/$ParentId/checkMemberObjects" -Body $body -ErrorAction Stop
-    # L’API renvoie un tableau d’IDs présents (transitifs). Si $ChildId est dedans ⇒ déjà membre.
-    if ($resp -and $resp.value -and ($resp.value -contains $ChildId)) { return $true }
+    $body = @{ groupIds = @($ParentId) } | ConvertTo-Json
+    $resp = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/groups/$ChildId/checkMemberGroups" -Body $body -ErrorAction Stop
+    return [bool]($resp -and $resp.value -and ($resp.value -contains $ParentId))
   } catch {
-    # En cas d’erreur, on considère “inconnu” ⇒ $false, l’appelant décidera
     return $false
   }
-  return $false
 }
 
+function Get-GraphErrorMessage {
+  param($Err)
+  $msg = $Err.Exception.Message
+  if ($Err.ErrorDetails -and $Err.ErrorDetails.Message) {
+    $raw = $Err.ErrorDetails.Message
+    try {
+      $j = $raw | ConvertFrom-Json -ErrorAction Stop
+      if ($j.error.message) { $msg = $j.error.message }
+    } catch {
+      if ($raw -match '"message"\s*:\s*"([^"]+)"') { $msg = $Matches[1] } else { $msg = "$msg $raw" }
+    }
+  }
+  return $msg
+}
 
 function Add-ChildToParent-Idempotent {
   param([string]$ParentId, [string]$ChildId)
@@ -298,49 +391,42 @@ function Add-ChildToParent-Idempotent {
   if ([string]::IsNullOrWhiteSpace($ParentId) -or [string]::IsNullOrWhiteSpace($ChildId)) { return }
   if ($ParentId -eq $ChildId) { Write-Warn "Ignoré (parent == enfant)."; return }
 
-  # 1) Déjà membre (transitif) ? → skip (couvre direct et indirect)
+  # 1) Déjà membre (direct ou transitif) ? → information seulement
   if (Test-TransitiveMembership -ParentId $ParentId -ChildId $ChildId) {
-    Write-Warn "Déjà membre (transitif — skippé)."
+    Write-Info "Déjà membre du groupe parent (aucune modification)."
     return
   }
 
-  # 2) Boucle ? (le parent est-il déjà dans les membres transitifs de l'enfant ?)
+  # 2) Boucle ? (le parent est-il déjà membre, directement ou non, de l'enfant ?)
   if (Test-TransitiveMembership -ParentId $ChildId -ChildId $ParentId) {
-    Write-ErrorX "Le groupe est déjà membre du groupe parent"
+    Write-ErrorX "Imbrication refusée : le groupe parent est déjà membre de ce groupe (boucle)."
     return
   }
 
-  # 3) Tentative d’ajout avec 2 retries courts (éventuelle latence de création)
+  # 3) Ajout; nouvelles tentatives seulement pour les erreurs temporaires
   $refJson = @{ "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$ChildId" } | ConvertTo-Json
-  $ok = $false
-  for ($try=1; $try -le 3 -and -not $ok; $try++) {
+  for ($try = 1; $try -le 3; $try++) {
     try {
       Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/groups/$ParentId/members/`$ref" -Body $refJson -ErrorAction Stop | Out-Null
-      $ok = $true
+      Write-Ok "Ajouté"
+      return
     } catch {
-      if ($try -lt 3) { Start-Sleep -Milliseconds (400 * $try) }  # backoff léger
-      else {
-        # 4) Dernier échec → re-teste membership transitive :
-        if (Test-TransitiveMembership -ParentId $ParentId -ChildId $ChildId) {
-          Write-Warn "Déjà membre (transitif — skippé)."
-        } else {
-          # Extraire un message lisible si Graph en fournit un
-          $msg = $_.Exception.Message
-          if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
-            try { $j = $_.ErrorDetails.Message | ConvertFrom-Json; if ($j.error.message) { $msg = $j.error.message } } catch {}
-          }
-          if ($msg -match 'added object references already exist') {
-            Write-Warn "Déjà membre (skippé)."
-          } else {
-            Write-ErrorX "Ajout membre a échoué : $msg"
-          }
-        }
+      $msg = Get-GraphErrorMessage $_
+
+      # Déjà membre : information, pas une erreur
+      if ($msg -match 'already exist' -or (Test-TransitiveMembership -ParentId $ParentId -ChildId $ChildId)) {
+        Write-Info "Déjà membre du groupe parent (aucune modification)."
         return
       }
+
+      # Réessayer seulement les erreurs temporaires (latence de création, throttling, 5xx)
+      $transient = $_.Exception.Message -match 'NotFound|TooManyRequests|429|5\d\d|ServiceUnavailable|InternalServerError|GatewayTimeout'
+      if ($transient -and $try -lt 3) { Start-Sleep -Milliseconds (800 * $try); continue }
+
+      Write-ErrorX "Ajout membre a échoué : $msg"
+      return
     }
   }
-
-  if ($ok) { Write-Ok "Ajouté" }
 }
 
 
@@ -381,9 +467,8 @@ foreach ($g in $rows) {
   }
 
   # Recherche Graph
-  $safeName = $displayName.Replace("'","''")
   $existing = (Invoke-MgGraphRequest -Method GET `
-      -Uri "https://graph.microsoft.com/v1.0/groups?`$filter=displayName eq '$safeName'" `
+      -Uri (Get-GroupFilterUri -DisplayName $displayName) `
       -ErrorAction SilentlyContinue).value
 
   if ($existing) {
@@ -395,13 +480,7 @@ foreach ($g in $rows) {
   }
 
   # mailNickname OBLIGATOIRE et valide
-  $mailNickname = ($displayName -replace '[^a-zA-Z0-9]', '').ToLower()
-  if ($mailNickname.Length -gt 64) {
-      $mailNickname = $mailNickname.Substring(0,64)
-  }
-  if ($mailNickname.Length -eq 0) {
-      $mailNickname = "grp$(Get-Random -Minimum 10000 -Maximum 99999)"
-  }
+  $mailNickname = Get-MailNickname $displayName
 
   # Corps Graph
   $body = @{
@@ -419,7 +498,7 @@ foreach ($g in $rows) {
   try {
       $newGroup = Invoke-MgGraphRequest -Method POST `
           -Uri "https://graph.microsoft.com/v1.0/groups" `
-          -Body ($body | ConvertTo-Json -Depth 5)
+          -Body (ConvertTo-GraphJson $body)
 
       $GroupCache[$g.Nom]         = $newGroup.id
       $DisplayCache[$displayName] = $newGroup.id
